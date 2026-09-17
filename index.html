@@ -52,7 +52,7 @@
 </head>
 <body>
 <div id="load"><img src="icon-192.png" alt=""><div class="spin"></div><div class="t">กำลังเปิด VEI1 Log…</div><div id="slow">โหลดนานผิดปกติ — ตรวจสอบสัญญาณอินเทอร์เน็ต หรือ <a id="direct" href="#">เปิดฟอร์มโดยตรง</a></div></div>
-<iframe id="app" title="VEI1 Log" allow="clipboard-write; fullscreen" allowfullscreen></iframe>
+<iframe id="app" title="VEI1 Log" allow="clipboard-write; fullscreen; web-share" allowfullscreen></iframe>
 
 <div id="tip">
   <b>ติดตั้งเป็นแอปบนมือถือ</b><br>
@@ -105,6 +105,23 @@ document.getElementById("tipLater").onclick = function () { document.getElementB
 document.getElementById("tipOk").onclick = function () { try { localStorage.setItem("vei1.tip", "no"); } catch (e) {} document.getElementById("tip").style.display = "none"; };
 document.getElementById("tipInstall").onclick = function () { if (!deferred) return; deferred.prompt(); deferred.userChoice.then(function () { deferred = null; document.getElementById("tip").style.display = "none"; }); };
 setTimeout(showTip, 2500);
+
+/* ---- แชร์รูปรายงานแทนฟอร์ม (Web Share ใช้จากใน iframe ของ Apps Script ไม่ได้ หน้าเปลือกชั้นนอกสุดจึงเป็นคนเรียกเมนูแชร์ของเครื่อง) ---- */
+var OK_ORIGIN = /(^|\.)(googleusercontent\.com|script\.google\.com)$/;
+function canShareFiles() { try { var f = new File([new Uint8Array([137, 80, 78, 71])], "t.png", { type: "image/png" }); return !!(navigator.canShare && navigator.canShare({ files: [f] })); } catch (e) { return false; } }
+function b64ToFile(dataUrl, name) { var b = atob(dataUrl.split(",")[1]), u = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return new File([u], name, { type: "image/png" }); }
+window.addEventListener("message", function (e) {
+  var d = e.data; if (!d || !d.vei1) return;
+  var host = ""; try { host = new URL(e.origin).hostname; } catch (x) {}
+  if (!OK_ORIGIN.test(host)) return;
+  if (d.vei1 === "ping") { e.source.postMessage({ vei1: "canShare", ok: canShareFiles() }, "*"); return; }
+  if (d.vei1 === "share" && typeof d.data === "string") {
+    var file = b64ToFile(d.data, d.name || "report.png"), src = e.source;
+    navigator.share({ files: [file], title: d.name || "VEI1 report" })
+      .then(function () { src.postMessage({ vei1: "shared", ok: true }, "*"); })
+      .catch(function (err) { src.postMessage({ vei1: "shared", ok: false, error: String(err && err.message || err) }, "*"); });
+  }
+});
 
 /* Service worker (จำเป็นสำหรับให้ Android เสนอ "ติดตั้งแอป") */
 if ("serviceWorker" in navigator) { navigator.serviceWorker.register("sw.js").catch(function () {}); }
