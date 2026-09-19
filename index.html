@@ -58,11 +58,23 @@
   #line{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;background:#F5F7F4;z-index:10}
   #line a{display:inline-block;background:#0F6E56;color:#fff;text-decoration:none;font-weight:600;padding:12px 22px;border-radius:12px;font-size:16px}
   #line img{width:84px;border-radius:20px}
+  /* ปุ่มติดตั้งแบบค้างไว้ — โผล่ตลอดจนกว่าจะติดตั้งสำเร็จ */
+  #inst{position:fixed;right:14px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:8;display:none;
+        align-items:center;gap:8px;height:46px;padding:0 18px 0 15px;border:0;border-radius:23px;
+        background:#0F6E56;color:#fff;font:inherit;font-size:15px;font-weight:600;
+        box-shadow:0 6px 20px rgba(15,110,86,.42);cursor:pointer}
+  #inst svg{flex:none}
+  #inst:active{transform:scale(.96)}
 </style>
 </head>
 <body>
 <div id="load"><img src="icon-192.png" alt=""><div class="spin"></div><div class="t">กำลังเปิด LOG…</div><div id="slow">โหลดนานผิดปกติ — ตรวจสอบสัญญาณอินเทอร์เน็ต หรือ <a id="direct" href="#">เปิดฟอร์มโดยตรง</a></div></div>
 <iframe id="app" title="LOG" allow="clipboard-write; fullscreen; web-share" allowfullscreen></iframe>
+
+<button id="inst" type="button" aria-label="ติดตั้งแอปลงเครื่อง">
+  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M4 20h16"/></svg>
+  ติดตั้งแอป
+</button>
 
 <div id="tip">
   <b>ติดตั้งเป็นแอปบนมือถือ</b><br>
@@ -102,18 +114,29 @@ if (inLine) {
 
 /* คำแนะนำติดตั้ง (แสดงครั้งแรกเมื่อยังไม่ได้ติดตั้ง) */
 var deferred = null;
-window.addEventListener("beforeinstallprompt", function (e) { e.preventDefault(); deferred = e; var b = document.getElementById("tipInstall"); b.style.display = "block"; document.getElementById("tipOk").style.display = "none"; });
-function showTip() {
+window.addEventListener("beforeinstallprompt", function (e) { e.preventDefault(); deferred = e; var b = document.getElementById("tipInstall"); b.style.display = "block"; document.getElementById("tipOk").style.display = "none"; showInstBtn(); });
+
+/* ปุ่มติดตั้งค้างมุมล่างขวา: Android กดแล้วขึ้นกล่องติดตั้งของระบบ, iOS กดแล้วขึ้นวิธีทำใน Safari */
+var instBtn = document.getElementById("inst");
+function showInstBtn() { if (!standalone && !inLine) instBtn.style.display = "flex"; }
+instBtn.onclick = function () {
+  if (deferred) { deferred.prompt(); deferred.userChoice.then(function () { deferred = null; }); return; }
+  showTip(true);                                  /* ไม่มีกล่องของระบบ (iOS หรือเคยปฏิเสธไว้) → บอกวิธีทำมือ */
+};
+window.addEventListener("appinstalled", function () { instBtn.style.display = "none"; document.getElementById("tip").style.display = "none"; });
+setTimeout(showInstBtn, 1200);                    /* iOS ไม่มี beforeinstallprompt จึงต้องโชว์เองด้วย */
+function showTip(force) {
   if (standalone || inLine) return;
-  try { if (localStorage.getItem("vei1.tip") === "no") return; } catch (e) {}
+  if (!force) { try { if (localStorage.getItem("vei1.tip") === "no") return; } catch (e) {} }
   document.getElementById("tipTxt").innerHTML = isIOS
     ? "ใน Safari กดปุ่ม <b>แชร์</b> (สี่เหลี่ยมมีลูกศรขึ้น) → เลื่อนหา <b>\"เพิ่มไปยังหน้าจอโฮม\"</b> → กด <b>เพิ่ม</b>"
     : "ใน Chrome กดเมนู <b>⋮</b> มุมขวาบน → <b>\"เพิ่มไปยังหน้าจอหลัก\"</b> หรือ <b>\"ติดตั้งแอป\"</b> → กด <b>ติดตั้ง</b>";
   document.getElementById("tip").style.display = "block";
+  instBtn.style.display = "none";          /* กล่องคำแนะนำกับปุ่มอยู่มุมเดียวกัน โชว์ทีละอย่าง */
 }
-document.getElementById("tipLater").onclick = function () { document.getElementById("tip").style.display = "none"; };
-document.getElementById("tipOk").onclick = function () { try { localStorage.setItem("vei1.tip", "no"); } catch (e) {} document.getElementById("tip").style.display = "none"; };
-document.getElementById("tipInstall").onclick = function () { if (!deferred) return; deferred.prompt(); deferred.userChoice.then(function () { deferred = null; document.getElementById("tip").style.display = "none"; }); };
+document.getElementById("tipLater").onclick = function () { document.getElementById("tip").style.display = "none"; showInstBtn(); };
+document.getElementById("tipOk").onclick = function () { try { localStorage.setItem("vei1.tip", "no"); } catch (e) {} document.getElementById("tip").style.display = "none"; showInstBtn(); };
+document.getElementById("tipInstall").onclick = function () { if (!deferred) return; deferred.prompt(); deferred.userChoice.then(function () { deferred = null; document.getElementById("tip").style.display = "none"; showInstBtn(); }); };
 setTimeout(showTip, 2500);
 
 /* ---- แชร์รูปรายงานแทนฟอร์ม (Web Share ใช้จากใน iframe ของ Apps Script ไม่ได้ หน้าเปลือกชั้นนอกสุดจึงเป็นคนเรียกเมนูแชร์ของเครื่อง) ---- */
