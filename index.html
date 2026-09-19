@@ -95,6 +95,15 @@ var ua = navigator.userAgent || "";
 var inLine = /\bLine\//i.test(ua);
 var isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 var standalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+/* Samsung Internet ติดตั้งแอปแล้วโดน Google Play Protect บล็อกเสมอ (สร้างด้วยมาตรฐาน Android เก่า)
+   จึงต้องพาไปเปิดใน Chrome ให้ด้วยปุ่มเดียว ไม่ต้องให้ผู้ใช้ไปหาเอง */
+var isSamsung = /SamsungBrowser/i.test(ua);
+var isAndroid = /Android/i.test(ua);
+function chromeUrl() {
+  var fb = encodeURIComponent("https://play.google.com/store/apps/details?id=com.android.chrome");
+  return "intent://" + location.host + location.pathname + location.search +
+         "#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=" + fb + ";end";
+}
 
 document.getElementById("direct").href = target;
 
@@ -118,10 +127,15 @@ window.addEventListener("beforeinstallprompt", function (e) { e.preventDefault()
 
 /* ปุ่มติดตั้งค้างมุมล่างขวา: Android กดแล้วขึ้นกล่องติดตั้งของระบบ, iOS กดแล้วขึ้นวิธีทำใน Safari */
 var instBtn = document.getElementById("inst");
-function showInstBtn() { if (!standalone && !inLine) instBtn.style.display = "flex"; }
+function showInstBtn() {
+  if (standalone || inLine) return;
+  if (isSamsung) instBtn.lastChild.textContent = " เปิดใน Chrome เพื่อติดตั้ง";
+  instBtn.style.display = "flex";
+}
 instBtn.onclick = function () {
+  if (isSamsung || (isAndroid && !deferred && !window.chrome)) { location.href = chromeUrl(); return; }
   if (deferred) { deferred.prompt(); deferred.userChoice.then(function () { deferred = null; }); return; }
-  showTip(true);                                  /* ไม่มีกล่องของระบบ (iOS หรือเคยปฏิเสธไว้) → บอกวิธีทำมือ */
+  showTip(true);                                  /* iOS หรือเคยปฏิเสธไว้ → บอกวิธีทำมือ */
 };
 window.addEventListener("appinstalled", function () { instBtn.style.display = "none"; document.getElementById("tip").style.display = "none"; });
 setTimeout(showInstBtn, 1200);                    /* iOS ไม่มี beforeinstallprompt จึงต้องโชว์เองด้วย */
@@ -130,6 +144,8 @@ function showTip(force) {
   if (!force) { try { if (localStorage.getItem("vei1.tip") === "no") return; } catch (e) {} }
   document.getElementById("tipTxt").innerHTML = isIOS
     ? "ใน Safari กดปุ่ม <b>แชร์</b> (สี่เหลี่ยมมีลูกศรขึ้น) → เลื่อนหา <b>\"เพิ่มไปยังหน้าจอโฮม\"</b> → กด <b>เพิ่ม</b>"
+    : isSamsung
+    ? "เครื่องนี้เปิดอยู่ใน Samsung Internet ซึ่งติดตั้งแอปไม่ได้ (โดน Google Play Protect บล็อก)<br>กดปุ่มเขียว <b>เปิดใน Chrome เพื่อติดตั้ง</b> มุมล่างขวา แล้วกดติดตั้งอีกครั้งใน Chrome"
     : "ใน Chrome กดเมนู <b>⋮</b> มุมขวาบน → <b>\"เพิ่มไปยังหน้าจอหลัก\"</b> หรือ <b>\"ติดตั้งแอป\"</b> → กด <b>ติดตั้ง</b>";
   document.getElementById("tip").style.display = "block";
   instBtn.style.display = "none";          /* กล่องคำแนะนำกับปุ่มอยู่มุมเดียวกัน โชว์ทีละอย่าง */
