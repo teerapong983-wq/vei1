@@ -78,7 +78,7 @@
 
 </div>
 
-<div id="line"><img src="icon-192.png" alt=""><div style="font-size:16px;line-height:1.5">หน้านี้เปิดอยู่ใน LINE<br>กรุณาเปิดใน Chrome/Safari<br>เพื่อติดตั้งเป็นแอปและใช้งานได้ครบ</div><a id="lineOpen" href="#">เปิดใน Chrome / Safari</a></div>
+<div id="line"><img src="icon-192.png" alt=""><div style="font-size:16px;line-height:1.5">กดปุ่มด้านล่าง<br>เพื่อเปิดและติดตั้งแอป</div><a id="lineOpen" href="#">เปิดแอป</a></div>
 
 <script>
 /* ---- ตั้งค่า: ลิงก์ Apps Script ของฟอร์ม (ลงท้ายด้วย /exec) ---- */
@@ -105,8 +105,17 @@ document.getElementById("direct").href = target;
 
 /* เปิดจากใน LINE → ให้ไปเปิดในเบราว์เซอร์จริงก่อน (LINE บล็อกการดาวน์โหลดและติดตั้งแอปไม่ได้) */
 if (inLine) {
-  var u = new URL(location.href); u.searchParams.set("openExternalBrowser", "1");
-  document.getElementById("lineOpen").href = u.toString();
+  /* Android: เด้งเข้า Chrome โดยตรง (ถ้าไปเบราว์เซอร์ค่าเริ่มต้น เครื่อง Samsung จะได้ Samsung Internet แล้วติดตั้งไม่ผ่าน)
+     iPhone: openExternalBrowser=1 เปิด Safari ซึ่งติดตั้งได้ปกติ */
+  var ext = new URL(location.href); ext.searchParams.set("openExternalBrowser", "1");
+  var lo = document.getElementById("lineOpen");
+  lo.textContent = isAndroid ? "เปิดใน Chrome" : "เปิดใน Safari";
+  lo.href = isAndroid ? chromeUrl() : ext.toString();
+  if (isAndroid) lo.onclick = function () {
+    /* เผื่อ LINE ไม่ยอมส่งไป Chrome: ถ้าผ่านไป 1.5 วิ แล้วหน้านี้ยังโชว์อยู่ ให้ใช้วิธีเปิดเบราว์เซอร์ค่าเริ่มต้นแทน */
+    var t = setTimeout(function () { location.href = ext.toString(); }, 1500);
+    document.addEventListener("visibilitychange", function () { if (document.hidden) clearTimeout(t); });
+  };
   document.getElementById("line").style.display = "flex";
   document.getElementById("load").style.display = "none";
 } else {
