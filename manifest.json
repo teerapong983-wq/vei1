@@ -1,7 +1,7 @@
 {
-  "name": "VEI1 Log — บันทึกข้อมูล VEI1",
-  "short_name": "VEI1 Log",
-  "description": "บันทึกข้อมูลการเดินเครื่องโรงไฟฟ้าชีวมวล VEI1 (Vanachai Energy)",
+  "name": "LOG — บันทึกข้อมูลการเดินเครื่อง",
+  "short_name": "LOG",
+  "description": "บันทึกข้อมูลการเดินเครื่องประจำผลัด",
   "lang": "th",
   "start_url": "./index.html",
   "scope": "./",
